@@ -65,8 +65,8 @@
             var camera = new BABYLON.ArcRotateCamera("camera", Math.PI / 2, 1.6, 7.6, new BABYLON.Vector3(0,1.5,0), scene);
             camera.minZ = 0.01;
             camera.allowUpsideDown = false;
-            camera.wheelPrecision = 150;
-            camera.pinchDeltaPercentage = 0.0001;
+            camera.wheelPrecision = 1;
+            camera.pinchDeltaPercentage = 10;
             camera.attachControl(canvas, true);
             var hdrTexture = new BABYLON.CubeTexture("textures/Studio_Softbox_2Umbrellas_cube_specular.env", scene);
             hdrTexture.gammaSpace = false;
