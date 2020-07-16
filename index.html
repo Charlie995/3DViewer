@@ -1,15 +1,244 @@
 <!DOCTYPE html>
-<html lang="en-us">
-  <head>
-    <meta charset="utf-8">
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <title>Unity WebGL Player | WebGLModelViewer01</title>
-    <script src="Build/UnityLoader.js"></script>
+<html>
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+
+        <title>3D Viewer</title>
+
+        <!-- Babylon.js -->
+        <script src="https://code.jquery.com/pep/0.4.2/pep.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.6.2/dat.gui.min.js"></script>
+        <script src="https://preview.babylonjs.com/ammo.js"></script>
+        <script src="https://preview.babylonjs.com/cannon.js"></script>
+        <script src="https://preview.babylonjs.com/Oimo.js"></script>
+        <script src="https://preview.babylonjs.com/libktx.js"></script>
+        <script src="https://preview.babylonjs.com/earcut.min.js"></script>
+        <script src="https://preview.babylonjs.com/babylon.js"></script>
+        <script src="https://preview.babylonjs.com/inspector/babylon.inspector.bundle.js"></script>
+        <script src="https://preview.babylonjs.com/materialsLibrary/babylonjs.materials.min.js"></script>
+        <script src="https://preview.babylonjs.com/proceduralTexturesLibrary/babylonjs.proceduralTextures.min.js"></script>
+        <script src="https://preview.babylonjs.com/postProcessesLibrary/babylonjs.postProcess.min.js"></script>
+        <script src="https://preview.babylonjs.com/loaders/babylonjs.loaders.js"></script>
+        <script src="https://preview.babylonjs.com/serializers/babylonjs.serializers.min.js"></script>
+        <script src="https://preview.babylonjs.com/gui/babylon.gui.min.js"></script>
+
+        <style>
+            html, body {
+                overflow: hidden;
+                width: 100%;
+                height: 100%;
+                margin: 0;
+                padding: 0;
+            }
+
+            #renderCanvas {
+                width: 100%;
+                height: 100%;
+                touch-action: none;
+            }
+        </style>
+    </head>
+<body>
+    <canvas id="renderCanvas"></canvas>
     <script>
-      UnityLoader.instantiate("unityContainer", "Build/Builds.json");
+        var canvas = document.getElementById("renderCanvas");
+
+        var engine = null;
+        var scene = null;
+        var sceneToRender = null;
+        var createDefaultEngine = function() { return new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true }); };
+        function assignLightmapOnMaterial(material, lightmap) {
+            material.lightmapTexture = lightmap;
+            material.lightmapTexture.coordinatesIndex = 1;
+            material.useLightmapAsShadowmap = true;
+        }
+        
+        BABYLON.DefaultLoadingScreen.prototype.hideLoadingUI = function(){
+          document.getElementById("customLoadingScreenDiv").style.display = "none";
+          console.log("scene is now loaded");
+        }
+        
+        var createScene = function () {
+            // scene init
+            var scene = new BABYLON.Scene(engine);
+            scene.clearColor = BABYLON.Color3.Black();
+            var camera = new BABYLON.ArcRotateCamera("camera", Math.PI / 2, 1.6, 7.6, new BABYLON.Vector3(0,1.5,0), scene);
+            camera.minZ = 0.01;
+            camera.allowUpsideDown = false;
+            camera.wheelPrecision = 150;
+            camera.pinchPrecision = 0.5;
+            camera.attachControl(canvas, true);
+            var hdrTexture = new BABYLON.CubeTexture("textures/Studio_Softbox_2Umbrellas_cube_specular.env", scene);
+            hdrTexture.gammaSpace = false;
+            scene.environmentTexture = hdrTexture;
+            var coupler, couplerGLTFRoot;
+            var couplerAnimationGroups;
+            var couplerCurrentStep = 0;
+        
+            // cornell box
+            BABYLON.SceneLoader.ImportMesh(
+                "",
+                //"https://models.babylonjs.com/CornellBox/",
+                "https://charlie995.github.io/Model/",
+                "cornellBox2.glb",
+                scene,
+                function () {
+                    // renaming the default gltf "__root__"
+                    scene.getMeshByName("bloc.000").parent.name = "__cornell-root__";
+                    // material tweaking
+                    scene.materials.forEach(function(material){
+                        material.environmentIntensity = 1.4;
+                    });
+                    scene.getMaterialByName("light.000").emissiveColor = BABYLON.Color3.White(); 
+                    //var monkeyMtl = scene.getMaterialByName("suzanne.000");
+                    //monkeyMtl.metallic = 0.64;
+                    //monkeyMtl.roughness = 0.63;
+        
+                    // we have to cycles through objects to assign their lightmaps
+                    let lightmappedMeshes = ["bloc.000"/*, "suzanne.000"*/, "cornellBox.000"];
+                    lightmappedMeshes.forEach(function(mesh){
+                        let currentMesh = scene.getNodeByName(mesh);
+                        let currentMeshChildren = currentMesh.getChildren();
+                        // lightmap texture creation
+                        let currentLightmap = new BABYLON.Texture(
+                            "https://models.babylonjs.com/CornellBox/" + currentMesh.name + ".lightmap.jpg",
+                            scene,
+                            false,
+                            false);
+                        switch(currentMesh.getClassName()){
+                            case "Mesh":
+                                assignLightmapOnMaterial(currentMesh.material, currentLightmap);
+                                break;
+                            case "TransformNode": 
+                                currentMeshChildren.forEach(function(mesh){
+                                    assignLightmapOnMaterial(mesh.material, currentLightmap);
+                                });
+                                break;  
+                        }
+                    });
+        
+                    // all new meshes now receive shadows (shadowGenerator created below)
+                    scene.meshes.forEach(function(mesh){
+                        mesh.receiveShadows = true;
+                    });
+            });
+        
+            // BJS logo /*
+            BABYLON.SceneLoader.ImportMesh("","https://charlie995.github.io/Model/","QC_ML_AttachSteps.glb",scene,(meshes, particleSystems, skeletons, animationGroups) => {
+            //BABYLON.SceneLoader.ImportMesh("","https://charlie995.github.io/Model/","QC_attachSteps.glb",scene,(meshes, particleSystems, skeletons, animationGroups) => {
+                    coupler = meshes[0];
+                    couplerGLTFRoot = coupler;//.parent;
+                    couplerGLTFRoot.name = "__shaderBall-root__";
+                    couplerGLTFRoot.scaling.scaleInPlace(0.4);
+                    couplerGLTFRoot.position.y = 0.5;
+                    couplerGLTFRoot.rotationQuaternion = null; //this will help for the rotation anim later
+                    couplerAnimationGroups = animationGroups;
+                    couplerAnimationGroups[couplerCurrentStep].speedRatio = 0.5;
+                    // dyn light to generate shadows 
+                    var light = new BABYLON.DirectionalLight("dirLight", new BABYLON.Vector3(0, -1, 0), scene);
+                    light.position = new BABYLON.Vector3(0, 3, 0);
+                    // shadows handling
+                    var shadowGenerator = new BABYLON.ShadowGenerator(128, light);
+                    shadowGenerator.useBlurExponentialShadowMap = true;
+                    meshes.forEach(function(mesh){
+                        shadowGenerator.addShadowCaster(mesh);
+                    }); 
+            });
+
+            // why not using glow?
+            var glowLayer = new BABYLON.GlowLayer("glow", scene, {
+                mainTextureFixedSize: 256,
+                blurKernelSize: 32
+            });
+
+            // UI
+            var advancedTexture = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI");
+                    var panel = new BABYLON.GUI.StackPanel();
+                    panel.isVertical = false;
+                    panel.verticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_BOTTOM;
+                    advancedTexture.addControl(panel);
+
+                    var addButton = function (text, callback) {
+                         var button = BABYLON.GUI.Button.CreateSimpleButton("button", text);
+                         button.width = "140px";
+                         button.height = "40px";
+                         button.color = "white";
+                         button.background = "green";
+                         button.paddingLeft = "10px";
+                         button.paddingRight = "10px";
+                         button.top =  "30%";
+                         button.onPointerUpObservable.add(function () {
+                              callback();
+                         });
+                         panel.addControl(button);
+                    }
+
+                    addButton("Back", function () {
+                        //couplerAnimationGroups[couplerCurrentStep].stop();
+                        //couplerAnimationGroups[couplerCurrentStep].reset();
+                        if(couplerCurrentStep < 0)
+                            couplerCurrentStep--;
+                        else
+                            couplerCurrentStep = 0;
+                        
+                        couplerAnimationGroups[couplerCurrentStep].restart();
+                        couplerAnimationGroups[couplerCurrentStep].play(true);
+                        couplerAnimationGroups[couplerCurrentStep].speedRatio = 0.5;
+                        //couplerAnimationGroups[couplerCurrentStep].reset();
+                        
+                        //couplerAnimationGroups[0].
+                    });
+
+                    addButton("Play", function () {
+                        couplerAnimationGroups[couplerCurrentStep].speedRatio = 0.5;
+                        couplerAnimationGroups[couplerCurrentStep].play(true);
+                    });
+
+                    addButton("Pause", function () {
+                        couplerAnimationGroups[couplerCurrentStep].pause();
+                    });
+
+                    addButton("Next", function () {
+                        //couplerAnimationGroups[couplerCurrentStep].stop();
+                        //couplerAnimationGroups[couplerCurrentStep].reset();
+                        if(couplerCurrentStep < 6)
+                            couplerCurrentStep++;
+                        else
+                            couplerCurrentStep = 0;
+                        
+                        couplerAnimationGroups[couplerCurrentStep].restart();
+                        couplerAnimationGroups[couplerCurrentStep].play(true);
+                        couplerAnimationGroups[couplerCurrentStep].speedRatio = 0.5;
+                        //couplerAnimationGroups[couplerCurrentStep].reset();
+                        
+                        //couplerAnimationGroups[0].
+                    });
+
+            return scene;
+        };
+
+        var engine;
+        try {
+            engine = createDefaultEngine();
+        } catch(e) {
+            console.log("the available createEngine function failed. Creating the default engine instead");
+            engine = createDefaultEngine();
+        }
+                if (!engine) throw 'engine should not be null.';
+                scene = createScene();;
+                sceneToRender = scene
+
+                engine.runRenderLoop(function () {
+                    if (sceneToRender) {
+                        sceneToRender.render();
+                    }
+                });
+
+        // Resize
+        window.addEventListener("resize", function () {
+            engine.resize();
+        });
+
     </script>
-  </head>
-  <body>
-    <div id="unityContainer" style="width: 960px; height: 600px; margin: auto"></div>
-  </body>
+</body>
 </html>
