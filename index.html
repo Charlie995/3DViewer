@@ -66,7 +66,7 @@
             camera.minZ = 0.01;
             camera.allowUpsideDown = false;
             camera.wheelPrecision = 150;
-            camera.pinchPrecision = 0.01;
+            camera.pinchDeltaPercentage = 0.0001;
             camera.attachControl(canvas, true);
             var hdrTexture = new BABYLON.CubeTexture("textures/Studio_Softbox_2Umbrellas_cube_specular.env", scene);
             hdrTexture.gammaSpace = false;
