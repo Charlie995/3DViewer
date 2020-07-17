@@ -238,7 +238,8 @@
             });
             
             var mat = new BABYLON.StandardMaterial("mat0", scene);
-	        mat.diffuseTexture = new BABYLON.Texture("/textures/dromone.png", scene);
+            //mat.diffuseTexture = new BABYLON.Texture("/textures/dromone.png", scene);
+            mat.diffuseTexture = new BABYLON.Texture("https://charlie995.github.io/Model/dromone.png", scene);
             mat.diffuseTexture.hasAlpha = true;
             mat.emissiveColor = new BABYLON.Color3(0.3, 0.3, 0.3); 
 
