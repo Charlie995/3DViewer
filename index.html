@@ -65,7 +65,7 @@
             var camera = new BABYLON.ArcRotateCamera("camera", Math.PI / 2, 1.6, 7.6, new BABYLON.Vector3(0,1.5,0), scene);
             camera.minZ = 0.01;
             camera.allowUpsideDown = false;
-            camera.wheelPrecision = 1;
+            camera.wheelPrecision = 150;
             camera.pinchDeltaPercentage = 0.0001;
             camera.pinchPercision = 0.0001;
             camera.attachControl(canvas, true);
@@ -88,7 +88,7 @@
                     scene.getMeshByName("bloc.000").parent.name = "__cornell-root__";
                     // material tweaking
                     scene.materials.forEach(function(material){
-                        material.environmentIntensity = 1.4;
+                        material.environmentIntensity = 0.4;
                     });
                     scene.getMaterialByName("light.000").emissiveColor = BABYLON.Color3.White(); 
                     //var monkeyMtl = scene.getMaterialByName("suzanne.000");
@@ -154,67 +154,109 @@
 
             // UI
             var advancedTexture = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI");
-                    var panel = new BABYLON.GUI.StackPanel();
-                    panel.isVertical = false;
-                    panel.verticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_BOTTOM;
-                    advancedTexture.addControl(panel);
+            var panel = new BABYLON.GUI.StackPanel();
+            panel.isVertical = false;
+            panel.verticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_BOTTOM;
+            advancedTexture.addControl(panel);
 
-                    var addButton = function (text, callback) {
-                         var button = BABYLON.GUI.Button.CreateSimpleButton("button", text);
-                         button.width = "140px";
-                         button.height = "40px";
-                         button.color = "white";
-                         button.background = "green";
-                         button.paddingLeft = "10px";
-                         button.paddingRight = "10px";
-                         button.top =  "30%";
-                         button.onPointerUpObservable.add(function () {
-                              callback();
-                         });
-                         panel.addControl(button);
-                    }
+            var advancedTexture = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI");
 
-                    addButton("Back", function () {
-                        //couplerAnimationGroups[couplerCurrentStep].stop();
-                        //couplerAnimationGroups[couplerCurrentStep].reset();
-                        if(couplerCurrentStep < 0)
-                            couplerCurrentStep--;
-                        else
-                            couplerCurrentStep = 0;
+            var text1 = new BABYLON.GUI.TextBlock();
+            text1.text = "1. Curl in the coupler.";
+            text1.color = "white";
+            text1.fontSize = 24;
+            text1.top =  "40%";
+            text1.outlineColor = "black";
+            text1.outlineWidth = 2;
+            advancedTexture.addControl(text1);    
+
+            var updateText = function (step) {
+                if(step == 0){
+                    text1.text = "1. Curl in the coupler.";
+                }else if(step == 1){
+                    text1.text = "2. Press the power button followed by the control button.";
+                }else if(step == 2){
+                    text1.text = "3. Curl out the coupler";
+                }else if(step == 3){
+                    text1.text = "4. Attach the coupler to the bucket.";
+                }else if(step == 4){
+                    text1.text = "5. Curl in the coupler";
+                }else if(step == 5){
+                    text1.text = "6. Press the power button.";
+                }else if(step == 6){
+                    text1.text = "7. Perform a bump test.";
+                }
+            }
+
+            var addButton = function (text, callback) {
+                 var button = BABYLON.GUI.Button.CreateSimpleButton("button", text);
+                 button.width = "140px";
+                 button.height = "40px";
+                 button.color = "white";
+                 button.background = "green";
+                 button.paddingLeft = "10px";
+                 button.paddingRight = "10px";
+                 button.top =  "30%";
+                 button.onPointerUpObservable.add(function () {
+                      callback();
+                 });
+                 panel.addControl(button);
+            }
+
+            addButton("Back", function () {
+                couplerAnimationGroups[couplerCurrentStep].stop();
+                couplerAnimationGroups[couplerCurrentStep].reset();
+                if(couplerCurrentStep > 0){
+                    couplerCurrentStep--;
+                }
+                else {
+                    couplerCurrentStep = 0;
+                }
+                couplerAnimationGroups[couplerCurrentStep].reset();
+                couplerAnimationGroups[couplerCurrentStep].restart();
+                couplerAnimationGroups[couplerCurrentStep].play(true);
+                couplerAnimationGroups[couplerCurrentStep].speedRatio = 0.5;   
+                updateText(couplerCurrentStep);                  
+            });
+
+            addButton("Pause", function () {
+                couplerAnimationGroups[couplerCurrentStep].pause();
+            });
+
+            addButton("Next", function () {
+                if(couplerCurrentStep < 6){
+                    couplerCurrentStep++;
+                }
+                else{
+                    couplerCurrentStep = 6;
+                }
                         
-                        couplerAnimationGroups[couplerCurrentStep].restart();
-                        couplerAnimationGroups[couplerCurrentStep].play(true);
-                        couplerAnimationGroups[couplerCurrentStep].speedRatio = 0.5;
-                        //couplerAnimationGroups[couplerCurrentStep].reset();
-                        
-                        //couplerAnimationGroups[0].
-                    });
+                couplerAnimationGroups[couplerCurrentStep].restart();
+                couplerAnimationGroups[couplerCurrentStep].play(true);
+                couplerAnimationGroups[couplerCurrentStep].speedRatio = 0.5;
+                updateText(couplerCurrentStep); 
+            });
+            
+            var mat = new BABYLON.StandardMaterial("mat0", scene);
+	        mat.diffuseTexture = new BABYLON.Texture("/textures/dromone.png", scene);
+            mat.diffuseTexture.hasAlpha = true;
+            mat.emissiveColor = new BABYLON.Color3(0.3, 0.3, 0.3); 
 
-                    addButton("Play", function () {
-                        couplerAnimationGroups[couplerCurrentStep].speedRatio = 0.5;
-                        couplerAnimationGroups[couplerCurrentStep].play(true);
-                    });
+	        //Plane with texture
+	        var box = BABYLON.MeshBuilder.CreatePlane("plane0",{height: 0.45, width: 2.59}, scene);
+            box.material = mat;	
+            box.position = new BABYLON.Vector3(1.9, 2, 0);
+            box.rotate(BABYLON.Axis.Y, Math.PI / 2, BABYLON.Space.WORLD);
 
-                    addButton("Pause", function () {
-                        couplerAnimationGroups[couplerCurrentStep].pause();
-                    });
+            var box1 = BABYLON.MeshBuilder.CreatePlane("plane0",{height: 0.45, width: 2.59}, scene);
+            box1.material = mat;	
+            box1.position = new BABYLON.Vector3(-1.9, 2, 0);
+            box1.rotate(BABYLON.Axis.Y, -(Math.PI / 2), BABYLON.Space.WORLD);
 
-                    addButton("Next", function () {
-                        //couplerAnimationGroups[couplerCurrentStep].stop();
-                        //couplerAnimationGroups[couplerCurrentStep].reset();
-                        if(couplerCurrentStep < 6)
-                            couplerCurrentStep++;
-                        else
-                            couplerCurrentStep = 0;
-                        
-                        couplerAnimationGroups[couplerCurrentStep].restart();
-                        couplerAnimationGroups[couplerCurrentStep].play(true);
-                        couplerAnimationGroups[couplerCurrentStep].speedRatio = 0.5;
-                        //couplerAnimationGroups[couplerCurrentStep].reset();
-                        
-                        //couplerAnimationGroups[0].
-                    });
-
+            //Light direction is up and left
+	        var light = new BABYLON.HemisphericLight("hemiLight", new BABYLON.Vector3(0, 1, 0), scene);
+            light.diffuse = new BABYLON.Color3(0.79, 0.6, 0.6);
+            
             return scene;
         };
 
@@ -225,15 +267,15 @@
             console.log("the available createEngine function failed. Creating the default engine instead");
             engine = createDefaultEngine();
         }
-                if (!engine) throw 'engine should not be null.';
-                scene = createScene();;
-                sceneToRender = scene
+        if (!engine) throw 'engine should not be null.';
+        scene = createScene();
+        sceneToRender = scene
 
-                engine.runRenderLoop(function () {
-                    if (sceneToRender) {
-                        sceneToRender.render();
-                    }
-                });
+        engine.runRenderLoop(function () {
+            if (sceneToRender) {
+                sceneToRender.render();
+            }
+        });
 
         // Resize
         window.addEventListener("resize", function () {
